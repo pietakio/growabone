@@ -1,0 +1,35 @@
+# --------------------( LICENSE                           )--------------------
+# Copyright (c) 2021 Alexis Pietak & Cecil Curry.
+# See "LICENSE" for further details.
+#
+# --------------------( SYNOPSIS                          )--------------------
+# Template with which setuptools generates this project's "MANIFEST" file.
+
+# ....................{ INCLUDE                           }....................
+# Include all requisite top-level installation-time files.
+.readthedocs.yml
+include LICENSE
+include MANIFEST.in
+include README.md
+include conftest.py
+include pytest.ini
+include setup.cfg
+include setup.py
+include tox.ini
+
+# ....................{ INCLUDE ~ recursive               }....................
+# Include all requisite project-specific py.test and setuptools subpackages.
+#
+# Note that these subpackages are *ONLY* required at installation time and
+# hence omitted from the "packages" key passed to the setup() function by
+# "setup.py". Welcome to Setuptools Hell, dear friend.
+recursive-include growabone_test *
+
+# Include all optional documentation.
+recursive-include doc *
+
+# ....................{ EXCLUDE                           }....................
+# Exclude all ignorable cache files.
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo
