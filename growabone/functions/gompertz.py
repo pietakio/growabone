@@ -4,11 +4,13 @@
 # See "LICENSE" for further details.
 
 '''
-**General functions for modeling human growth characteristics**
+**Gompertz functions for modeling human growth characteristics**
 
 '''
 
-def gomp_potential(ti, Ao, alpha):
+import numpy as np
+
+def growth_potential(ti, Ao, alpha):
     '''
     An equation to compute the Gompertz-curve growth potential given time points ti and the
     necessary parameters.
@@ -18,7 +20,7 @@ def gomp_potential(ti, Ao, alpha):
     return phi
 
 
-def gomp_velocity(ti, Ao, alpha):
+def growth_vel(ti, Ao, alpha):
     '''
     An equation to compute the Gompertz growth velocity given time points ti and the
     necessary parameters.
@@ -28,7 +30,7 @@ def gomp_velocity(ti, Ao, alpha):
     return phi
 
 
-def gomp_Lmax(ti, Ao, alpha, Lmax=1.0):
+def growth_len(ti, Ao, alpha, Lmax=1.0):
     '''
     An equation to compute the Gompertz growth curve given time points ti and the
     necessary parameters. Computes in terms of the maximum (saturated) length.
@@ -49,3 +51,33 @@ def gomp_Lmax(ti, Ao, alpha, Lmax=1.0):
     Lt = Lmax * np.exp(-(Ao / alpha) * np.exp(-alpha * (ti)))
 
     return Lt
+
+def growth_fboost(Ao, alpha):
+
+    Fboost = (Ao/alpha)
+
+    return Fboost
+
+def growth_mapper(A_o, alpha_o, A_i, alpha_i):
+    '''
+    Given two sets of growth potential parameters, find the scaling factor lambda that
+    will map curve 'o' to curve 'i'.
+
+    Parameters
+    ---------------
+    :param A_o:
+    :param B_o:
+    :param A_i:
+    :param alpha_i:
+
+    Returns
+    ----------------
+    '''
+
+    # Calculate the boost factor for the i-data:
+    Fboost_i = growth_fboost(A_i, alpha_i)
+
+    # The scaling equation is trivial: lamb*(A_o/alpha_o) = Fboost_i
+    lamb = Fboost_i*(alpha_o/A_o)
+
+    return lamb
