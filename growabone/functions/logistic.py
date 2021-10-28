@@ -4,43 +4,43 @@
 # See "LICENSE" for further details.
 
 '''
-**Gompertz functions for modeling human growth characteristics**
+**Logistic functions for modeling human growth characteristics**
 
 '''
 
 import numpy as np
 
-def growth_potential(ti, Ao, alpha):
+def growth_potential(ti, ta, alpha):
     '''
-    An equation to compute the Gompertz-curve growth potential given time points ti and the
+    An equation to compute the Logistic-curve growth potential given time points ti and the
     necessary parameters.
     '''
-    phi = Ao * np.exp(-alpha * (ti))
+    phi =  alpha*(1 - (1 / (1 + np.exp(-alpha * (ti - ta)))))
 
     return phi
 
 
-def growth_vel(ti, Ao, alpha):
+def growth_vel(ti, ta, alpha):
     '''
-    An equation to compute the Gompertz growth velocity given time points ti and the
+    An equation to compute the Logistic growth velocity given time points ti and the
     necessary parameters.
     '''
-    phi = np.exp(Ao * np.exp(-alpha * (ti)))
+    phi = np.exp(alpha*(1 - (1 / (1 + np.exp(-alpha * (ti - ta))))))
 
     return phi
 
 
-def growth_len(ti, Ao, alpha, Lmax=1.0):
+def growth_len(ti, ta, alpha, Lmax=1.0):
     '''
-    An equation to compute the Gompertz growth curve given time points ti and the
+    An equation to compute the Logistic growth curve given time points ti and the
     necessary parameters. Computes in terms of the maximum (saturated) length.
 
     Parameters
     ----------
     ti : np.array
         Time points to evaluate the curve
-    Ao : float
-        Initial rate of growth
+    ta : float
+        Center of growth curve
     alpha : float
         Decline in initial rate of growth
     Lmax : float
@@ -48,35 +48,32 @@ def growth_len(ti, Ao, alpha, Lmax=1.0):
         growth curve is normalized.
 
     '''
-    Lt = Lmax * np.exp(-(Ao / alpha) * np.exp(-alpha * (ti)))
+    Lt = Lmax / (1 + np.exp(-alpha * (ti - ta)))
 
     return Lt
 
-def growth_len_fitting(ti, Ao, alpha):
+def growth_len_fitting(ti, ta, alpha):
     '''
-    An equation to compute the Gompertz growth curve given time points ti and the
+    An equation to compute the Logistic growth curve given time points ti and the
     necessary parameters. Computes in terms of the maximum (saturated) length.
 
     Parameters
     ----------
     ti : np.array
         Time points to evaluate the curve
-    Ao : float
-        Initial rate of growth
+    ta : float
+        Center of growth curve
     alpha : float
         Decline in initial rate of growth
-    Lmax : float
-        Specifies the maximum growth that the segment reaches. If Lmax is 1, the
-        growth curve is normalized.
 
     '''
-    Lt = np.exp(-(Ao / alpha) * np.exp(-alpha * (ti)))
+    Lt = 1 / (1 + np.exp(-alpha * (ti - ta)))
 
     return Lt
 
-def growth_fboost(Ao, alpha):
+def growth_fboost(ta, alpha):
 
-    Fboost = Ao/alpha
+    Fboost = np.log(1 + np.exp(alpha*ta))
 
     return Fboost
 

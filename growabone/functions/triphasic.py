@@ -172,6 +172,50 @@ def growth_len(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc, Lmax=1):
 
     return Lt
 
+def growth_len_fitting(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc):
+    '''
+    Computes the growth curve given time ti and the set of required
+    parameters given Lmax as a final parameter. Computes in terms of
+    the maximum (saturated) length.
+
+    Parameters
+    ----------
+    ti : np.array
+        Time points to evaluate the curve
+    Ao : float
+        Initial rate of growth
+    alpha : float
+        Decline in initial rate of growth
+    Bo : float
+        Related to the height of the first Gaussian growth pulse
+    beta : float
+        Related to the width of the first Gaussian growth pulse
+    tb : float
+        Specifies the centre (wrt time) of the first Gaussian growth pulse.
+    Co : float
+        Related to the height of the second Gaussian growth pulse
+    gamma : float
+        Related to the width of the second Gaussian growth pulse
+    tc : float
+        Specifies the centre (wrt time) of the second Gaussian growth pulse.
+    Lmax : float
+        Specifies the maximum growth that the segment reaches. If Lmax is 1, the
+        growth curve is normalized.
+
+    '''
+
+    B = ((np.sqrt(np.pi*beta)*Bo)/2)
+    C = ((np.sqrt(np.pi*gamma)*Co)/2)
+
+    g_Lm = (-(Ao / alpha) * np.exp(-alpha * ti) +
+            B*erf((ti - tb) / beta) +
+            C*erf((ti - tc) / gamma)  - B - C
+            )
+
+    Lt = np.exp(g_Lm)
+
+    return Lt
+
 def growth_fboost(Ao, alpha, Bo, beta, Co, gamma):
 
     Fboost = (Ao/alpha) + np.sqrt(np.pi*beta)*Bo + np.sqrt(np.pi*gamma)*Co
