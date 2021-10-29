@@ -31,10 +31,13 @@ class Grower(object):
         self.dat_name = str(dat_name)
         self.dat_o = np.asarray(dat_o)
 
+        self.del_t = np.gradient(self.dat_time, edge_order=2)
+
         # Set initial guess for parameter values:
         if init_params is None:
             # self.init_params = [0.42, 0.5, 0.12, 4.96, 6.31, 0.06, 3.11, 12.05]
-            self.init_params = [0.369,  0.355,  0.034,  3.343,  6.912,  0.04 ,  3.369, 11.662] # bone data
+            # self.init_params = [0.369,  0.355,  0.034,  3.343,  6.912,  0.04 ,  3.369, 11.662] # bone data
+            self.init_params = [0.029, 0.52, 0.0037, 3.0, 6.5, 0.0039, 2.3, 11.662] # Height data
         else:
             self.init_params = init_params
 
@@ -71,14 +74,15 @@ class Grower(object):
         self.dat_n = self.dat_o / self.dat_Lmax  # normalize the raw growth curve data
         self.mults = 1 / self.dat_n  # Obtain the multiplier curve
 
-        self.vel_o = np.gradient(self.dat_o, edge_order=2)  # Calculate the growth velocity of the raw data
-        self.vel_n = np.gradient(self.dat_n, edge_order=2)  # Calculate the growth velocity of the normed data
+        #FIXME: WE need an RBF gradient for the data s the numpy version SUCKS!
+        self.vel_o = np.gradient(self.dat_o, edge_order=2)/self.del_t  # Calculate the growth velocity of the raw data
+        self.vel_n = np.gradient(self.dat_n, edge_order=2)/self.del_t  # Calculate the growth velocity of the normed data
 
         self.ln_dat_o = np.log(self.dat_o)  # Natural log of the raw data
         self.ln_dat_n = np.log(self.dat_n)  # Natural log of the normed data
 
-        self.ln_vel_o = np.gradient(self.ln_dat_o, edge_order=2)  # Growth velocity of raw log data
-        self.ln_vel_n = np.gradient(self.ln_dat_n, edge_order=2)  # Growth velocity of normed log data
+        self.ln_vel_o = np.gradient(self.ln_dat_o, edge_order=2)/self.del_t  # Growth velocity of raw log data
+        self.ln_vel_n = np.gradient(self.ln_dat_n, edge_order=2)/self.del_t  # Growth velocity of normed log data
 
     def fit_triphasic(self):
         '''
