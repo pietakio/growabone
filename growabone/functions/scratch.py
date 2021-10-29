@@ -11,7 +11,7 @@ from beartype import beartype
 import numpy as np
 from scipy.optimize import curve_fit
 from growabone.functions import triphasic as gf
-# from growabone.functions import triphasic_gscaled as gf
+from growabone.functions import triphasic_gscaled as gfs
 from growabone.functions import gompertz as gomp
 
 def fit_gompertz_potential(self):
@@ -107,3 +107,46 @@ def fit_growth_potential(self):
 
     # predict initial length from lboost and final length:
     self.Lo = self.dat_Lmax / self.fboost
+
+def fit_triphasic_gscaled(self):
+    '''
+    '''
+
+    fit_params, param_covariance = curve_fit(gfs.growth_len_fitting,
+                                             self.dat_time,
+                                             self.dat_n,  # Fit to normalized growth curve
+                                             p0=self.init_params_gscaled,
+                                             sigma=None,
+                                             absolute_sigma=False,
+                                             check_finite=True,
+                                             bounds=(0.0, np.inf),
+                                             method='trf',  # lm’, ‘trf’, ‘dogbox’
+                                             jac=None)
+
+    self.params_bytri_gs = fit_params
+    self.param_error_bytri_gs = np.sqrt(np.diag(param_covariance))
+
+    # Compute the fit for use of these parameters on the original growth curve data:
+    self.fit_o_bytri_gs = gfs.growth_len(self.dat_time,
+                               fit_params[0],
+                               fit_params[1],
+                               fit_params[2],
+                               fit_params[3],
+                               fit_params[4],
+                               fit_params[5],
+                               fit_params[6],
+                               fit_params[7],
+                               self.dat_Lmax
+                               )
+    sum_resid = np.sum((self.fit_o_bytri_gs - self.dat_o) ** 2)
+    self.rmse_bytri_gs = np.sqrt(sum_resid)
+
+    self.fboost_bytri_gs = gfs.growth_fboost(fit_params[0], fit_params[1],
+                                   fit_params[2], fit_params[3],
+                                   fit_params[5], fit_params[6])
+    #     error_lboost =
+    ## FIXME: WHAT IS THE ERROR ON THE Lboost value given we have error on each param
+    ## AND can propegate it...
+
+    # predict initial length from lboost and final length:
+    self.Lo_bytri_gs = self.dat_Lmax / np.exp(self.fboost_bytri_gs)

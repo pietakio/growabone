@@ -20,14 +20,16 @@ def growth_potential(ti, ta, alpha):
     return phi
 
 
-def growth_vel(ti, ta, alpha):
+def growth_vel(ti, ta, alpha, Lmax):
     '''
     An equation to compute the Logistic growth velocity given time points ti and the
     necessary parameters.
     '''
-    phi = np.exp(alpha*(1 - (1 / (1 + np.exp(-alpha * (ti - ta))))))
+    logi = 1 / (1 + np.exp(-alpha * (ti - ta)))
 
-    return phi
+    Vt = logi*alpha*Lmax*(1 - logi)
+
+    return Vt
 
 
 def growth_len(ti, ta, alpha, Lmax=1.0):

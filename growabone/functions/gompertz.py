@@ -20,14 +20,14 @@ def growth_potential(ti, Ao, alpha):
     return phi
 
 
-def growth_vel(ti, Ao, alpha):
+def growth_vel(ti, Ao, alpha, Lmax=1):
     '''
     An equation to compute the Gompertz growth velocity given time points ti and the
     necessary parameters.
     '''
-    phi = np.exp(Ao * np.exp(-alpha * (ti)))
+    Vt = Ao*Lmax*np.exp(-alpha*ti)*np.exp(-(Ao / alpha)*np.exp(-alpha * (ti)))
 
-    return phi
+    return Vt
 
 
 def growth_len(ti, Ao, alpha, Lmax=1.0):
