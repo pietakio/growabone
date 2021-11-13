@@ -273,6 +273,54 @@ def growth_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc):
 
     return Fboost
 
+
+def growth_jacobian(x, **kwargs):
+
+    A = x[0]
+    a = x[1]
+    B = x[2]
+    b = x[3]
+    t_b = x[4]
+    C = x[5]
+    c = x[6]
+    t_c = x[7]
+
+    L_max = kwargs['L_max']
+    t = kwargs['t']
+
+    Bp = (np.sqrt(np.pi)/2)*B*b
+    Cp = (np.sqrt(np.pi)/2)*C*c
+
+    dLdA = (-(L_max / a) * np.exp(-a * t) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLda = (L_max * (((A * t * np.exp(-a * t)) / a + (A * np.exp(-a * t)) / a ** 2)) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdB = ((np.sqrt(np.pi)) * (L_max / 2) * b * (erf((t - t_b) / b) - 1) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdb = (L_max * ((((np.sqrt(np.pi) * B) / 2) * (erf((t - t_b) / b) - 1)) -
+                     ((B * (t - t_b)) / (b)) * np.exp(-(1 / b ** 2) * (t - t_b) ** 2)) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdtb = (-B * L_max * np.exp(-(1 / b ** 2) * (t - t_b) ** 2) *
+             np.exp(
+                 -(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdC = ((np.sqrt(np.pi)) * (L_max / 2) * c * (erf((t - t_c) / c) - 1) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdc = (L_max * ((((np.sqrt(np.pi) * C) / 2) * (np.erf((t - t_c) / c) - 1)) -
+                     ((C * (t - t_c)) / (c)) * np.exp(-(1 / c ** 2) * (t - t_c) ** 2)) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (np.erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdtc = (-C * L_max * np.exp(-(1 / c ** 2) * (t - t_c) ** 2) *
+             np.exp(
+                 -(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    return dLdA, dLda, dLdB, dLdb, dLdtb, dLdC, dLdc, dLdtc
+
 # FIXME: GROWTH MAPPER needs to be updated for the unscaled growth potentials...
 # def growth_mapper(A_o, alpha_o, B_o, beta_o, C_o, gamma_o, A_i, alpha_i, B_i, beta_i, C_i, gamma_i):
 #     '''
