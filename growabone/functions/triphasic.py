@@ -362,62 +362,8 @@ def growth_len_fitting_f2(params, ti, ydata):
 
     Lt = np.exp(g_Lm)
 
-    rmse = np.sqrt(np.sum((Lt - ydata) ** 2))
-    # mse = np.sum((Lt - ydata) ** 2)
-
-    return rmse
-
-def growth_len_fitting_f3(params, ti, ydata):
-    '''
-    Computes the growth curve given time ti and the set of required
-    parameters given Lmax as a final parameter. Computes in terms of
-    the maximum (saturated) length. Function is formatted for stochastic
-    optimization methods such as basinhopping in scipy optimize.
-
-    Parameters
-    ----------
-    ti : np.array
-        Time points to evaluate the curve
-    Ao : float
-        Initial rate of growth
-    alpha : float
-        Decline in initial rate of growth
-    Bo : float
-        Related to the height of the first Gaussian growth pulse
-    beta : float
-        Related to the width of the first Gaussian growth pulse
-    tb : float
-        Specifies the centre (wrt time) of the first Gaussian growth pulse.
-    Co : float
-        Related to the height of the second Gaussian growth pulse
-    gamma : float
-        Related to the width of the second Gaussian growth pulse
-    tc : float
-        Specifies the centre (wrt time) of the second Gaussian growth pulse.
-    Lmax : float
-        Specifies the maximum growth that the segment reaches. If Lmax is 1, the
-        growth curve is normalized.
-
-    '''
-
-    Ao = params[0]
-    alpha = params[1]
-    # Bo= params[2]
-    # beta= params[3]
-    # tb = params[4]
-    Co = params[2]
-    gamma = params[3]
-    tc = params[4]
-
-    Cp = ((np.sqrt(np.pi)*Co*gamma)/2)
-
-    g_Lm = (-(Ao/alpha)*np.exp(-alpha*ti) +
-            Cp*erf((ti - tc)/gamma)  - Cp
-            )
-
-    Lt = np.exp(g_Lm)
-
-    rmse = np.sqrt(np.sum((Lt - ydata) ** 2))
+    rmse = np.sqrt(np.mean((Lt - ydata) ** 2)) # These functions fit better to rmse
+    # ss = np.sum(np.sqrt((Lt - ydata) ** 2))
     # mse = np.sum((Lt - ydata) ** 2)
 
     return rmse
@@ -472,7 +418,7 @@ def growth_jacobian(t, A, a, B, b, t_b, C, c, t_c):
 
     return jac
 
-def growth_jacobian_f2(x, t):
+def growth_jacobian_f2(x, t, L_max):
 
     A = x[0]
     a = x[1]
@@ -482,8 +428,6 @@ def growth_jacobian_f2(x, t):
     C = x[5]
     c = x[6]
     t_c = x[7]
-
-    L_max = 1.0
 
     Bp = (np.sqrt(np.pi)/2)*B*b
     Cp = (np.sqrt(np.pi)/2)*C*c

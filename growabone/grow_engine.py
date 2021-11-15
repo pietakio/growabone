@@ -104,23 +104,10 @@ class Grower(object):
                         bounds=boundsv,
                         )
 
-        # sol0 = minimize(gf.growth_pot_fitting,
-        #                 params,
-        #                 args=(self.dat_time, self.ln_vel_n),
-        #                 method='trust-constr',
-        #                 bounds=boundsv,
-        #                 )
-
         fit_params = sol0.x
-        self.rmse = sol0.fun
-
-        # Calculate parameter covariance matrix using the Jacobian:
-        jac = gf.growth_jacobian_f2(fit_params, self.dat_time)
-        param_covariance = np.linalg.pinv(jac.T.dot(jac))*self.rmse**2
 
         #---------------------------------------------------------
         self.params_bytri = fit_params
-        self.param_error_bytri = np.sqrt(np.diag(param_covariance))
 
         # Compute the fit for use of these parameters on the original growth curve data:
 
@@ -136,10 +123,19 @@ class Grower(object):
                                    self.dat_Lmax
                                    )
 
+        self.rmse =  np.sqrt(np.mean((self.fit_o_bytri - self.dat_o) ** 2))
 
+        # Calculate parameter covariance matrix using the Jacobian:
+        jac = gf.growth_jacobian_f2(fit_params, self.dat_time, self.dat_Lmax)
+
+        vari = np.sum((self.fit_o_bytri - self.dat_o)**2)/(len(self.fit_o_bytri) - len(fit_params))
+        param_covariance = np.linalg.pinv(jac.T.dot(jac))*vari
+
+        self.param_error_bytri = np.sqrt(np.diag(param_covariance))*self.rmse # Stand error of mean parameters
+        self.param_sd_bytri = np.sqrt(np.diag(param_covariance)) # Stand deviation of parameters
         sum_resid = np.sum((self.fit_o_bytri - self.dat_o) ** 2)
         self.mse_bytri = sum_resid
-        self.rmse_bytri = np.sqrt(sum_resid)
+        self.rmse_bytri = self.rmse
 
         self.fboost_bytri = gf.growth_fboost(fit_params[0], fit_params[1],
                                        fit_params[2], fit_params[3], fit_params[4],
