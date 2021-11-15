@@ -264,6 +264,63 @@ def growth_len_fitting(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc):
 
     return Lt
 
+def growth_len_fitting_f2(params, ti, ydata):
+    '''
+    Computes the growth curve given time ti and the set of required
+    parameters given Lmax as a final parameter. Computes in terms of
+    the maximum (saturated) length. Function is formatted for stochastic
+    optimization methods such as basinhopping in scipy optimize.
+
+    Parameters
+    ----------
+    ti : np.array
+        Time points to evaluate the curve
+    Ao : float
+        Initial rate of growth
+    alpha : float
+        Decline in initial rate of growth
+    Bo : float
+        Related to the height of the first Gaussian growth pulse
+    beta : float
+        Related to the width of the first Gaussian growth pulse
+    tb : float
+        Specifies the centre (wrt time) of the first Gaussian growth pulse.
+    Co : float
+        Related to the height of the second Gaussian growth pulse
+    gamma : float
+        Related to the width of the second Gaussian growth pulse
+    tc : float
+        Specifies the centre (wrt time) of the second Gaussian growth pulse.
+    Lmax : float
+        Specifies the maximum growth that the segment reaches. If Lmax is 1, the
+        growth curve is normalized.
+
+    '''
+
+    Ao = params[0]
+    alpha = params[1]
+    Bo= params[2]
+    beta= params[3]
+    tb = params[4]
+    Co = params[5]
+    gamma = params[6]
+    tc = params[7]
+
+    Bp = ((np.sqrt(np.pi)*Bo*beta)/2)
+    Cp = ((np.sqrt(np.pi)*Co*gamma)/2)
+
+    g_Lm = (-(Ao/alpha)*np.exp(-alpha*ti) +
+            Bp*erf((ti - tb)/beta) +
+            Cp*erf((ti - tc)/gamma) - Bp - Cp
+            )
+
+    Lt = np.exp(g_Lm)
+
+    rmse = np.sqrt(np.sum((Lt - ydata) ** 2))
+    # mse = np.sum((Lt - ydata) ** 2)
+
+    return rmse
+
 def growth_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc):
 
     Bp = ((np.sqrt(np.pi)*Bo*beta)/2)
@@ -274,19 +331,11 @@ def growth_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc):
     return Fboost
 
 
-def growth_jacobian(x, **kwargs):
+def growth_jacobian(t, A, a, B, b, t_b, C, c, t_c):
 
-    A = x[0]
-    a = x[1]
-    B = x[2]
-    b = x[3]
-    t_b = x[4]
-    C = x[5]
-    c = x[6]
-    t_c = x[7]
-
-    L_max = kwargs['L_max']
-    t = kwargs['t']
+    # L_max = kwargs['L_max']
+    L_max = 1.0
+    # t = kwargs['t']
 
     Bp = (np.sqrt(np.pi)/2)*B*b
     Cp = (np.sqrt(np.pi)/2)*C*c
@@ -311,15 +360,66 @@ def growth_jacobian(x, **kwargs):
     dLdC = ((np.sqrt(np.pi)) * (L_max / 2) * c * (erf((t - t_c) / c) - 1) *
             np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
 
-    dLdc = (L_max * ((((np.sqrt(np.pi) * C) / 2) * (np.erf((t - t_c) / c) - 1)) -
+    dLdc = (L_max * ((((np.sqrt(np.pi) * C) / 2) * (erf((t - t_c) / c) - 1)) -
                      ((C * (t - t_c)) / (c)) * np.exp(-(1 / c ** 2) * (t - t_c) ** 2)) *
-            np.exp(-(A / a) * np.exp(-a * t) + Bp * (np.erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
 
     dLdtc = (-C * L_max * np.exp(-(1 / c ** 2) * (t - t_c) ** 2) *
              np.exp(
                  -(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
 
-    return dLdA, dLda, dLdB, dLdb, dLdtb, dLdC, dLdc, dLdtc
+    jac = np.asarray([dLdA, dLda, dLdB, dLdb, dLdtb, dLdC, dLdc, dLdtc]).T
+
+    return jac
+
+
+def growth_jacobian_f2(x, t):
+
+    A = x[0]
+    a = x[1]
+    B = x[2]
+    b = x[3]
+    t_b = x[4]
+    C = x[5]
+    c = x[6]
+    t_c = x[7]
+
+    L_max = 1.0
+
+    Bp = (np.sqrt(np.pi)/2)*B*b
+    Cp = (np.sqrt(np.pi)/2)*C*c
+
+    dLdA = (-(L_max / a) * np.exp(-a * t) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLda = (L_max * (((A * t * np.exp(-a * t)) / a + (A * np.exp(-a * t)) / a ** 2)) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdB = ((np.sqrt(np.pi)) * (L_max / 2) * b * (erf((t - t_b) / b) - 1) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdb = (L_max * ((((np.sqrt(np.pi) * B) / 2) * (erf((t - t_b) / b) - 1)) -
+                     ((B * (t - t_b)) / (b)) * np.exp(-(1 / b ** 2) * (t - t_b) ** 2)) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdtb = (-B * L_max * np.exp(-(1 / b ** 2) * (t - t_b) ** 2) *
+             np.exp(
+                 -(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdC = ((np.sqrt(np.pi)) * (L_max / 2) * c * (erf((t - t_c) / c) - 1) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdc = (L_max * ((((np.sqrt(np.pi) * C) / 2) * (erf((t - t_c) / c) - 1)) -
+                     ((C * (t - t_c)) / (c)) * np.exp(-(1 / c ** 2) * (t - t_c) ** 2)) *
+            np.exp(-(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    dLdtc = (-C * L_max * np.exp(-(1 / c ** 2) * (t - t_c) ** 2) *
+             np.exp(
+                 -(A / a) * np.exp(-a * t) + Bp * (erf((t - t_b) / b) - 1) + Cp * (erf((t - t_c) / c) - 1)))
+
+    jac = np.asarray([dLdA, dLda, dLdB, dLdb, dLdtb, dLdC, dLdc, dLdtc]).T
+
+    return jac
 
 # FIXME: GROWTH MAPPER needs to be updated for the unscaled growth potentials...
 # def growth_mapper(A_o, alpha_o, B_o, beta_o, C_o, gamma_o, A_i, alpha_i, B_i, beta_i, C_i, gamma_i):
