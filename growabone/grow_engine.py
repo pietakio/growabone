@@ -13,7 +13,7 @@ from beartype import beartype
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize, basinhopping
 from growabone.functions import triphasic as gf
 from growabone.functions import triphasic_gscaled as gfs
 from growabone.functions import gompertz as gomp
@@ -88,21 +88,42 @@ class Grower(object):
         '''
         '''
 
-        fit_params, param_covariance = curve_fit(gf.growth_len_fitting,
-                                                 self.dat_time,
-                                                 self.dat_n,  # Fit to normalized growth curve
-                                                 p0=self.init_params,
-                                                 sigma=None,
-                                                 absolute_sigma=False,
-                                                 check_finite=True,
-                                                 method='trf',  # lm’, ‘trf’, ‘dogbox’
-                                                 bounds=(0.0, np.inf),
-                                                 jac=None)
+        # Minimize method: ----------------------------------------
+        params = self.init_params
 
+        # Bounds on parameter values
+        minb = 0.0
+        maxb = np.inf
+        boundsv = [(minb, maxb) for i in range(len(params))]
+        boundsv[-1] = (2.0, 18.0)  # Constrain the puberty peak to acheive a better fit
+
+        sol0 = minimize(gf.growth_len_fitting_f2,
+                        params,
+                        args=(self.dat_time, self.dat_n),
+                        method='trust-constr',
+                        bounds=boundsv,
+                        )
+
+        # sol0 = minimize(gf.growth_pot_fitting,
+        #                 params,
+        #                 args=(self.dat_time, self.ln_vel_n),
+        #                 method='trust-constr',
+        #                 bounds=boundsv,
+        #                 )
+
+        fit_params = sol0.x
+        self.rmse = sol0.fun
+
+        # Calculate parameter covariance matrix using the Jacobian:
+        jac = gf.growth_jacobian_f2(fit_params, self.dat_time)
+        param_covariance = np.linalg.pinv(jac.T.dot(jac))*self.rmse**2
+
+        #---------------------------------------------------------
         self.params_bytri = fit_params
         self.param_error_bytri = np.sqrt(np.diag(param_covariance))
 
         # Compute the fit for use of these parameters on the original growth curve data:
+
         self.fit_o_bytri = gf.growth_len(self.dat_time,
                                    fit_params[0],
                                    fit_params[1],
@@ -114,7 +135,10 @@ class Grower(object):
                                    fit_params[7],
                                    self.dat_Lmax
                                    )
+
+
         sum_resid = np.sum((self.fit_o_bytri - self.dat_o) ** 2)
+        self.mse_bytri = sum_resid
         self.rmse_bytri = np.sqrt(sum_resid)
 
         self.fboost_bytri = gf.growth_fboost(fit_params[0], fit_params[1],

@@ -53,6 +53,52 @@ def growth_potential(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc):
 
     return phi
 
+def growth_pot_fitting(params, ti, ydata):
+    '''
+    Computes the growth potential curve given time ti and the set of required
+    parameters. Designed for data fitting. .
+
+    Parameters
+    ----------
+    ti : np.array
+        Time points to evaluate the curve
+    Ao : float
+        Initial rate of growth
+    alpha : float
+        Decline in initial rate of growth
+    Bo : float
+        Related to the height of the first Gaussian growth pulse
+    beta : float
+        Related to the width of the first Gaussian growth pulse
+    tb : float
+        Specifies the centre (wrt time) of the first Gaussian growth pulse.
+    Co : float
+        Related to the height of the second Gaussian growth pulse
+    gamma : float
+        Related to the width of the second Gaussian growth pulse
+    tc : float
+        Specifies the centre (wrt time) of the second Gaussian growth pulse.
+
+    '''
+    Ao = params[0]
+    alpha = params[1]
+    Bo= params[2]
+    beta= params[3]
+    tb = params[4]
+    Co = params[5]
+    gamma = params[6]
+    tc = params[7]
+
+    # use my normalization for the gaussian, which gives the cleanest expression for L(t)
+    phi = (Ao*np.exp(-alpha*(ti)) +
+           Bo*np.exp(-(1/(beta**2))*(ti - tb)**2) +
+           Co*np.exp(-(1/(gamma**2))*(ti - tc)**2)
+           )
+
+    rmse = np.sqrt(np.sum((phi - ydata) ** 2))
+
+    return rmse
+
 def growth_potential_components(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc):
     '''
     Computes the three components of the growth potential curve given time ti and the set of required
@@ -321,6 +367,61 @@ def growth_len_fitting_f2(params, ti, ydata):
 
     return rmse
 
+def growth_len_fitting_f3(params, ti, ydata):
+    '''
+    Computes the growth curve given time ti and the set of required
+    parameters given Lmax as a final parameter. Computes in terms of
+    the maximum (saturated) length. Function is formatted for stochastic
+    optimization methods such as basinhopping in scipy optimize.
+
+    Parameters
+    ----------
+    ti : np.array
+        Time points to evaluate the curve
+    Ao : float
+        Initial rate of growth
+    alpha : float
+        Decline in initial rate of growth
+    Bo : float
+        Related to the height of the first Gaussian growth pulse
+    beta : float
+        Related to the width of the first Gaussian growth pulse
+    tb : float
+        Specifies the centre (wrt time) of the first Gaussian growth pulse.
+    Co : float
+        Related to the height of the second Gaussian growth pulse
+    gamma : float
+        Related to the width of the second Gaussian growth pulse
+    tc : float
+        Specifies the centre (wrt time) of the second Gaussian growth pulse.
+    Lmax : float
+        Specifies the maximum growth that the segment reaches. If Lmax is 1, the
+        growth curve is normalized.
+
+    '''
+
+    Ao = params[0]
+    alpha = params[1]
+    # Bo= params[2]
+    # beta= params[3]
+    # tb = params[4]
+    Co = params[2]
+    gamma = params[3]
+    tc = params[4]
+
+    Cp = ((np.sqrt(np.pi)*Co*gamma)/2)
+
+    g_Lm = (-(Ao/alpha)*np.exp(-alpha*ti) +
+            Cp*erf((ti - tc)/gamma)  - Cp
+            )
+
+    Lt = np.exp(g_Lm)
+
+    rmse = np.sqrt(np.sum((Lt - ydata) ** 2))
+    # mse = np.sum((Lt - ydata) ** 2)
+
+    return rmse
+
 def growth_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc):
 
     Bp = ((np.sqrt(np.pi)*Bo*beta)/2)
@@ -329,7 +430,6 @@ def growth_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc):
     Fboost = (Ao/alpha) + Bp*(1 + erf(tb/beta)) + Cp*(1 + erf(tc/gamma))
 
     return Fboost
-
 
 def growth_jacobian(t, A, a, B, b, t_b, C, c, t_c):
 
@@ -371,7 +471,6 @@ def growth_jacobian(t, A, a, B, b, t_b, C, c, t_c):
     jac = np.asarray([dLdA, dLda, dLdB, dLdb, dLdtb, dLdC, dLdc, dLdtc]).T
 
     return jac
-
 
 def growth_jacobian_f2(x, t):
 
