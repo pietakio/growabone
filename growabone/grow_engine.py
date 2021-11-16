@@ -37,7 +37,8 @@ class Grower(object):
         if init_params is None:
             # self.init_params = [0.42, 0.5, 0.12, 4.96, 6.31, 0.06, 3.11, 12.05]
             # self.init_params = [0.369,  0.355,  0.034,  3.343,  6.912,  0.04 ,  3.369, 11.662] # bone data
-            self.init_params = [0.029, 0.52, 0.0037, 3.0, 6.5, 0.0039, 2.3, 11.662] # Height data
+            # self.init_params = [0.029, 0.52, 0.0037, 3.0, 6.5, 0.0039, 2.3, 11.662] # Height data
+            self.init_params = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0]
         else:
             self.init_params = init_params
 
@@ -88,7 +89,27 @@ class Grower(object):
         '''
         '''
 
-        # Minimize method: ----------------------------------------
+        # # Minimize method: ----------------------------------------
+        # params = self.init_params
+        #
+        # # Bounds on parameter values
+        # minb = 0.0
+        # maxb = np.inf
+        # boundsv = [(minb, maxb) for i in range(len(params))]
+        # boundsv[-1] = (2.0, 18.0)  # Constrain the puberty peak to acheive a better fit
+        #
+        # sol0 = minimize(gf.growth_len_fitting_f2,
+        #                 params,
+        #                 args=(self.dat_time, self.dat_n),
+        #                 method='trust-constr',
+        #                 bounds=boundsv,
+        #                 )
+        #
+        # fit_params = sol0.x
+
+        # ---------------------------------------------------------
+        # Basin-hopping method:
+
         params = self.init_params
 
         # Bounds on parameter values
@@ -97,16 +118,27 @@ class Grower(object):
         boundsv = [(minb, maxb) for i in range(len(params))]
         boundsv[-1] = (2.0, 18.0)  # Constrain the puberty peak to acheive a better fit
 
-        sol0 = minimize(gf.growth_len_fitting_f2,
-                        params,
-                        args=(self.dat_time, self.dat_n),
-                        method='trust-constr',
-                        bounds=boundsv,
-                        )
+        sol0 = basinhopping(gf.growth_len_fitting_f2,
+                            params,
+                            niter=100,
+                            T=0.1,
+                            stepsize=0.1,
+                            minimizer_kwargs={'method': 'trust-constr',
+                                              'args': (self.dat_time, self.dat_n),
+                                              'bounds': boundsv},
+                            take_step=None,
+                            accept_test=None,
+                            callback=None,
+                            interval=50,
+                            disp=False,
+                            niter_success=None,
+                            )
 
         fit_params = sol0.x
 
-        #---------------------------------------------------------
+
+        #----------------------------------------------------------
+
         self.params_bytri = fit_params
 
         # Compute the fit for use of these parameters on the original growth curve data:
@@ -131,21 +163,30 @@ class Grower(object):
         vari = np.sum((self.fit_o_bytri - self.dat_o)**2)/(len(self.fit_o_bytri) - len(fit_params))
         param_covariance = np.linalg.pinv(jac.T.dot(jac))*vari
 
+        self.cov = param_covariance # save the covariance matrix
+        self.df = (len(self.fit_o_bytri) - len(fit_params)) # save degrees of freedom
+        self.N = len(self.fit_o_bytri)  # save total samples
+        self.n = len(fit_params) # save fit params
+
         self.param_error_bytri = np.sqrt(np.diag(param_covariance))*self.rmse # Stand error of mean parameters
         self.param_sd_bytri = np.sqrt(np.diag(param_covariance)) # Stand deviation of parameters
         sum_resid = np.sum((self.fit_o_bytri - self.dat_o) ** 2)
         self.mse_bytri = sum_resid
         self.rmse_bytri = self.rmse
 
-        self.fboost_bytri = gf.growth_fboost(fit_params[0], fit_params[1],
+        # Calculate the fboost and its components:
+        self.fboost_bytri, self.Fa, self.Fb, self.Fc = gf.growth_fboost(fit_params[0], fit_params[1],
                                        fit_params[2], fit_params[3], fit_params[4],
                                        fit_params[5], fit_params[6], fit_params[7])
-        #     error_lboost =
-        ## FIXME: WHAT IS THE ERROR ON THE Lboost value given we have error on each param
-        ## AND can propegate it...
+
+        # Calculate the error on the fboost parameters:
+        self.sd_fboost, self.sd_Fa, self.sd_Fb, self.sd_Fc = gf.error_fboost(fit_params[0], fit_params[1],
+                                       fit_params[2], fit_params[3], fit_params[4],
+                                       fit_params[5], fit_params[6], fit_params[7], param_covariance)
 
         # predict initial length from lboost and final length:
         self.Lo_bytri = self.dat_Lmax / np.exp(self.fboost_bytri)
+        self.sd_Lo = self.Lo_bytri*self.sd_fboost
 
         # Now that we have the parameters, compute components of the triphasic model's growth potential:
         self.phi_gomp1, self.phi_gauss1, self.phi_gauss2 = gf.growth_potential_components(self.dat_time,

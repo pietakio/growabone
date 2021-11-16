@@ -375,7 +375,38 @@ def growth_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc):
 
     Fboost = (Ao/alpha) + Bp*(1 + erf(tb/beta)) + Cp*(1 + erf(tc/gamma))
 
-    return Fboost
+    Fa = (Ao/alpha) # first component
+    Fb = Bp*(1 + erf(tb/beta)) # second component
+    Fc = Cp*(1 + erf(tc/gamma)) # third component
+
+    return Fboost, Fa, Fb, Fc
+
+def error_fboost(Ao, alpha, Bo, beta, tb, Co, gamma, tc, cov):
+
+    Bp = ((np.sqrt(np.pi)*Bo*beta)/2)
+    Cp = ((np.sqrt(np.pi)*Co*gamma)/2)
+
+    Fa = (Ao/alpha) # first component
+    Fb = Bp*(1 + erf(tb/beta)) # second component
+    Fc = Cp*(1 + erf(tc/gamma)) # third component
+
+    sd_A = np.sqrt(cov[0, 0])
+    sd_a = np.sqrt(cov[1, 1])
+    sd_B = np.sqrt(cov[2, 2])
+    sd_beta = np.sqrt(cov[3, 3])
+    sd_C = np.sqrt(cov[5, 5])
+    sd_gamma = np.sqrt(cov[6, 6])
+
+    cov_Aa = cov[0, 1]
+    cov_Bb = cov[2, 3]
+    cov_Cc = cov[5, 6]
+
+    sd_Fa = np.sqrt((Fa ** 2) * ((sd_A / Ao) ** 2 + (sd_a / alpha) ** 2 - 2 * (cov_Aa / (Ao * alpha))))
+    sd_Fb = np.sqrt((Fb ** 2) * ((sd_B / Bo) ** 2 + (sd_beta / beta) ** 2 + 2 * (cov_Bb / (Bo * beta))))
+    sd_Fc = np.sqrt((Fc ** 2) * ((sd_C / Co) ** 2 + (sd_gamma / gamma) ** 2 + 2 * (cov_Cc / (Co * gamma))))
+    sd_F = np.sqrt(sd_Fa ** 2 + sd_Fb ** 2 + sd_Fc ** 2)
+
+    return sd_F, sd_Fa, sd_Fb, sd_Fc
 
 def growth_jacobian(t, A, a, B, b, t_b, C, c, t_c):
 
