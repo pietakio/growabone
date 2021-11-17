@@ -95,7 +95,8 @@ def growth_pot_fitting(params, ti, ydata):
            Co*np.exp(-(1/(gamma**2))*(ti - tc)**2)
            )
 
-    rmse = np.sqrt(np.sum((phi - ydata) ** 2))
+    rmse = np.sqrt(np.mean((phi - ydata)**2))
+    # ss = np.sum((phi - ydata)**2)
 
     return rmse
 

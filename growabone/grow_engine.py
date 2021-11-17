@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.optimize import curve_fit, minimize, basinhopping
+from scipy.interpolate import CubicSpline
 from growabone.functions import triphasic as gf
 from growabone.functions import triphasic_gscaled as gfs
 from growabone.functions import gompertz as gomp
@@ -38,7 +39,7 @@ class Grower(object):
             # self.init_params = [0.42, 0.5, 0.12, 4.96, 6.31, 0.06, 3.11, 12.05]
             # self.init_params = [0.369,  0.355,  0.034,  3.343,  6.912,  0.04 ,  3.369, 11.662] # bone data
             # self.init_params = [0.029, 0.52, 0.0037, 3.0, 6.5, 0.0039, 2.3, 11.662] # Height data
-            self.init_params = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0]
+            self.init_params = [5.0, 1.5, 0.05, 1.0, 8.0, 0.05, 1.0, 13.0]
         else:
             self.init_params = init_params
 
@@ -75,7 +76,6 @@ class Grower(object):
         self.dat_n = self.dat_o / self.dat_Lmax  # normalize the raw growth curve data
         self.mults = 1 / self.dat_n  # Obtain the multiplier curve
 
-        #FIXME: WE need an RBF gradient for the data s the numpy version SUCKS!
         self.vel_o = np.gradient(self.dat_o, edge_order=2)/self.del_t  # Calculate the growth velocity of the raw data
         self.vel_n = np.gradient(self.dat_n, edge_order=2)/self.del_t  # Calculate the growth velocity of the normed data
 
@@ -85,56 +85,105 @@ class Grower(object):
         self.ln_vel_o = np.gradient(self.ln_dat_o, edge_order=2)/self.del_t  # Growth velocity of raw log data
         self.ln_vel_n = np.gradient(self.ln_dat_n, edge_order=2)/self.del_t  # Growth velocity of normed log data
 
+        # Try a different method of computing the gradient:
+        chs = CubicSpline(self.dat_time, self.ln_dat_n)
+        dchs = chs.derivative()
+
+        self.ln_vel_i = dchs(self.dat_time)
+
     def fit_triphasic(self):
         '''
         '''
 
-        # # Minimize method: ----------------------------------------
-        # params = self.init_params
-        #
-        # # Bounds on parameter values
-        # minb = 0.0
-        # maxb = np.inf
-        # boundsv = [(minb, maxb) for i in range(len(params))]
-        # boundsv[-1] = (2.0, 18.0)  # Constrain the puberty peak to acheive a better fit
-        #
-        # sol0 = minimize(gf.growth_len_fitting_f2,
-        #                 params,
-        #                 args=(self.dat_time, self.dat_n),
-        #                 method='trust-constr',
-        #                 bounds=boundsv,
-        #                 )
-        #
-        # fit_params = sol0.x
-
-        # ---------------------------------------------------------
-        # Basin-hopping method:
-
+        # Minimize method: ----------------------------------------
         params = self.init_params
 
         # Bounds on parameter values
         minb = 0.0
         maxb = np.inf
         boundsv = [(minb, maxb) for i in range(len(params))]
-        boundsv[-1] = (2.0, 18.0)  # Constrain the puberty peak to acheive a better fit
 
-        sol0 = basinhopping(gf.growth_len_fitting_f2,
-                            params,
-                            niter=100,
-                            T=0.1,
-                            stepsize=0.1,
-                            minimizer_kwargs={'method': 'trust-constr',
-                                              'args': (self.dat_time, self.dat_n),
-                                              'bounds': boundsv},
-                            take_step=None,
-                            accept_test=None,
-                            callback=None,
-                            interval=50,
-                            disp=False,
-                            niter_success=None,
-                            )
+        ## Constraints for girls:
+        boundsv[3] = (0.0, 5.0)  # Constrain the childhood peak width to achieve a better fit
+        boundsv[4] = (5.0, 9.0)  # Constrain the childhood peak center to achieve a better fit
+        boundsv[6] = (0.0, 5.0)  # Constrain the puberty peak width to achieve a better fit
+        boundsv[7] = (9.0, 18.0)  # Constrain the puberty peak to achieve a better fit
+
+        ## Constraints for boys:
+        # boundsv[3] = (0.0, 5.0)  # Constrain the childhood peak width to achieve a better fit
+        # boundsv[4] = (5.0, 11.0)  # Constrain the childhood peak center to achieve a better fit
+        # boundsv[6] = (0.0, 7.0)  # Constrain the puberty peak width to achieve a better fit
+        # boundsv[7] = (11.0, 18.0)  # Constrain the puberty peak to achieve a better fit
+
+        sol00 = minimize(gf.growth_pot_fitting,
+                        params,
+                        args=(self.dat_time, self.ln_vel_o),
+                        method='trust-constr',
+                        bounds=boundsv,
+                        tol = 1.0e-9
+                        )
+
+        # Try a two-phase search where the solution of the growth potential fitting is used as the
+        # initial conditions of a second fit to the real data:
+
+        sol0 = minimize(gf.growth_len_fitting_f2,
+                        sol00.x,
+                        args=(self.dat_time, self.dat_n),
+                        method='trust-constr',
+                        bounds=boundsv,
+                        tol=1.0e-9
+                        )
 
         fit_params = sol0.x
+
+        # # # ---------------------------------------------------------
+        # # Basin-hopping method:
+        #
+        # params = self.init_params
+        #
+        # # Bounds on parameter values
+        # minb = 0.0
+        # maxb = np.inf
+        # boundsv = [(minb, maxb) for i in range(len(params))]
+        # # boundsv[4] = (2.0, 20.0)  # Constrain the early childhood peak to achieve a better fit
+        # # boundsv[3] = (0.1, 5.0)  # Constrain the early childhood peak width to achieve a better fit
+        # boundsv[-1] = (2.0, 20.0)  # Constrain the puberty peak to achieve a better fit
+        # #
+        # sol0 = basinhopping(gf.growth_pot_fitting,
+        #                     params,
+        #                     niter=100,
+        #                     T=0.1,
+        #                     stepsize=0.1,
+        #                     minimizer_kwargs={'method': 'trust-constr',
+        #                                       'args': (self.dat_time, self.ln_vel_n),
+        #                                       'bounds': boundsv},
+        #                     take_step=None,
+        #                     accept_test=None,
+        #                     callback=None,
+        #                     interval=50,
+        #                     disp=True,
+        #                     niter_success=None,
+        #                     )
+        # #
+        # print('------------------------------------------')
+
+        # sol0 = basinhopping(gf.growth_len_fitting_f2,
+        #                     params,
+        #                     niter=10,
+        #                     T=100.0,
+        #                     stepsize=0.1,
+        #                     minimizer_kwargs={'method': 'trust-constr',
+        #                                       'args': (self.dat_time, self.dat_n),
+        #                                       'bounds': boundsv},
+        #                     take_step=None,
+        #                     accept_test=None,
+        #                     callback=None,
+        #                     interval=50,
+        #                     disp=False,
+        #                     niter_success=None,
+        #                     )
+
+        # fit_params = sol0.x
 
 
         #----------------------------------------------------------
