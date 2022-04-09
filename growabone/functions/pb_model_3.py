@@ -14,44 +14,29 @@ generating equation and appears to produce excellent fits to growth curves with 
 import numpy as np
 import sympy as sp
 
-def growth_potential(ti, h_1, h_theta, s_o, s_1, theta):
-    '''
-    An equation to compute the Gompertz-curve growth potential given time points ti and the
-    necessary parameters.
-    '''
-    h_1o, h_thetao, s_oo, s_1o, thetao, p_oo, p_1o, q_1o, to = sp.symbols('h_1, h_theta, s_o, s_1, theta, p_o, p_1, q_1, t',
-                                                                 real=True, positive=True)
-    h_m1 = h_1o - ((2 * (h_1o - h_thetao)) / (sp.exp(s_oo * (to - thetao)) + sp.exp(s_1o * (to - thetao))))  # Growth curve
 
-    gp_m1 = sp.diff(sp.log(h_m1), to)  # Growth potential, analytical
-
-    gp_m1_f = sp.lambdify([h_1o, h_thetao, s_oo, s_1o, thetao, to], gp_m1)
-
-    phi = gp_m1_f(h_1, h_theta, s_o, s_1, theta, ti)
-
-    return phi
-
-
-def growth_vel(ti, h_1, h_theta, s_o, s_1, theta):
+def growth_vel(ti, h_1, h_theta, p_o, p_1, q_1, theta):
     '''
     An equation to compute the Gompertz growth velocity given time points ti and the
     necessary parameters.
     '''
 
-    h_1o, h_thetao, s_oo, s_1o, thetao, p_oo, p_1o, q_1o, to = sp.symbols('h_1, h_theta, s_o, s_1, theta, p_o, p_1, q_1, t',
+    h_1o, h_thetao, thetao, p_oo, p_1o, q_1o, to = sp.symbols('h_1, h_theta, s_o, s_1, theta, p_o, p_1, q_1, t',
                                                                  real=True, positive=True)
-    h_m1 = h_1o - ((2 * (h_1o - h_thetao)) / (sp.exp(s_oo * (to - thetao)) + sp.exp(s_1o * (to - thetao))))  # Growth curve
+    h_m3 = (h_1o -
+            ((4*(h_1o - h_thetao))/((sp.exp(p_oo*(to-thetao)) +
+                                     sp.exp(p_1o*(to-thetao)))*(1 + sp.exp(q_1o*(to-thetao))))))
 
-    v_m1 = sp.diff(h_m1, to)  # Growth velocity, analytical
+    v_m3 = sp.diff(h_m3, to)  # Growth velocity, analytical
 
-    v_m1_f = sp.lambdify([h_1o, h_thetao, s_oo, s_1o, thetao, to], v_m1)
+    v_m3_f = sp.lambdify([h_1o, h_thetao, p_oo, p_1o, q_1o, thetao, to], v_m3)
 
-    Vt = v_m1_f(h_1, h_theta, s_o, s_1, theta, ti)
+    Vt = v_m3_f(h_1, h_theta, p_o, p_1, q_1, theta, ti)
 
     return Vt
 
 
-def growth_len(ti, h_1, h_theta, s_o, s_1, theta):
+def growth_len(ti, h_1, h_theta, p_o, p_1, q_1, theta):
     '''
     An equation to compute the Preece-Baines model 1 growth curve given time points ti and the
     necessary parameters. Computes in terms of the maximum (saturated) length.
@@ -69,7 +54,9 @@ def growth_len(ti, h_1, h_theta, s_o, s_1, theta):
         growth curve is normalized.
 
     '''
-    Lt = h_1 - ((2*(h_1 - h_theta))/(np.exp(s_o*(ti-theta)) + np.exp(s_1*(ti-theta)))) # Growth curve
+
+    Lt = h_1 - ((4 * (h_1 - h_theta)) / (
+                (sp.exp(p_o * (ti - theta)) + sp.exp(p_1 * (ti - theta))) * (1 + sp.exp(q_1 * (ti - theta)))))
 
     return Lt
 
@@ -93,11 +80,13 @@ def growth_len_fitting(params, ti, ydata):
     '''
     h_1 = params[0]
     h_theta = params[1]
-    s_o = params[2]
-    s_1= params[3]
+    p_o = params[2]
+    p_1= params[3]
+    q_1 = params[4]
     theta = params[5]
 
-    Lt = growth_len(ti, h_1, h_theta, s_o, s_1, theta)
+    Lt = h_1 - ((4 * (h_1 - h_theta)) / (
+                (sp.exp(p_o * (ti - theta)) + sp.exp(p_1 * (ti - theta))) * (1 + sp.exp(q_1 * (ti - theta)))))
 
     rmse = np.sqrt(np.mean((Lt - ydata)**2))
 
@@ -124,11 +113,12 @@ def growth_vel_fitting(params, ti, ydata):
     '''
     h_1 = params[0]
     h_theta = params[1]
-    s_o = params[2]
-    s_1= params[3]
+    p_o = params[2]
+    p_1= params[3]
+    q_1 = params[4]
     theta = params[5]
 
-    Vt = growth_vel(ti, h_1, h_theta, s_o, s_1, theta)
+    Vt = growth_vel(ti, h_1, h_theta, p_o, p_1, q_1, theta)
 
     rmse = np.sqrt(np.mean((Vt - ydata)**2))
 
