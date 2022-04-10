@@ -14,37 +14,19 @@ generating equation and appears to produce excellent fits to growth curves with 
 import numpy as np
 import sympy as sp
 
-def growth_potential(ti, h_1, h_theta, s_o, s_1, theta):
-    '''
-    An equation to compute the Gompertz-curve growth potential given time points ti and the
-    necessary parameters.
-    '''
-    h_1o, h_thetao, s_oo, s_1o, thetao, p_oo, p_1o, q_1o, to = sp.symbols('h_1, h_theta, s_o, s_1, theta, p_o, p_1, q_1, t',
-                                                                 real=True, positive=True)
-    h_m1 = h_1o - ((2 * (h_1o - h_thetao)) / (sp.exp(s_oo * (to - thetao)) + sp.exp(s_1o * (to - thetao))))  # Growth curve
+h_1o, h_thetao, s_oo, s_1o, thetao, to = sp.symbols('h_1, h_theta, s_o, s_1, theta, t',
+                                                                      real=True, positive=True)
+h_m1 = h_1o - ((2 * (h_1o - h_thetao)) / (sp.exp(s_oo * (to - thetao)) + sp.exp(s_1o * (to - thetao))))  # Growth curve
 
-    gp_m1 = sp.diff(sp.log(h_m1), to)  # Growth potential, analytical
+v_m1 = sp.diff(h_m1, to)  # Growth velocity, analytical
 
-    gp_m1_f = sp.lambdify([h_1o, h_thetao, s_oo, s_1o, thetao, to], gp_m1)
-
-    phi = gp_m1_f(h_1, h_theta, s_o, s_1, theta, ti)
-
-    return phi
-
+v_m1_f = sp.lambdify([h_1o, h_thetao, s_oo, s_1o, thetao, to], v_m1)
 
 def growth_vel(ti, h_1, h_theta, s_o, s_1, theta):
     '''
     An equation to compute the Gompertz growth velocity given time points ti and the
     necessary parameters.
     '''
-
-    h_1o, h_thetao, s_oo, s_1o, thetao, p_oo, p_1o, q_1o, to = sp.symbols('h_1, h_theta, s_o, s_1, theta, p_o, p_1, q_1, t',
-                                                                 real=True, positive=True)
-    h_m1 = h_1o - ((2 * (h_1o - h_thetao)) / (sp.exp(s_oo * (to - thetao)) + sp.exp(s_1o * (to - thetao))))  # Growth curve
-
-    v_m1 = sp.diff(h_m1, to)  # Growth velocity, analytical
-
-    v_m1_f = sp.lambdify([h_1o, h_thetao, s_oo, s_1o, thetao, to], v_m1)
 
     Vt = v_m1_f(h_1, h_theta, s_o, s_1, theta, ti)
 
@@ -95,12 +77,12 @@ def growth_len_fitting(params, ti, ydata):
     h_theta = params[1]
     s_o = params[2]
     s_1= params[3]
-    theta = params[5]
+    theta = params[4]
 
     Lt = growth_len(ti, h_1, h_theta, s_o, s_1, theta)
 
     rmse = np.sqrt(np.mean((Lt - ydata)**2))
-
+    # ss = np.sum((Lt - ydata)**2)
 
     return rmse
 
@@ -126,10 +108,10 @@ def growth_vel_fitting(params, ti, ydata):
     h_theta = params[1]
     s_o = params[2]
     s_1= params[3]
-    theta = params[5]
+    theta = params[4]
 
     Vt = growth_vel(ti, h_1, h_theta, s_o, s_1, theta)
 
     rmse = np.sqrt(np.mean((Vt - ydata)**2))
-
+    # ss = np.sum((Vt - ydata)**2)
     return rmse

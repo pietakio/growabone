@@ -11,14 +11,12 @@
 # ....................{ IMPORTS                           }....................
 from beartype import beartype
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from scipy.optimize import curve_fit, minimize, basinhopping
+from scipy.optimize import curve_fit, minimize, dual_annealing
 from scipy.interpolate import CubicSpline
 from growabone.functions import triphasic as gf
-from growabone.functions import biphasic as gfb
 from growabone.functions import gompertz as gomp
-from growabone.functions import pb_model_1 as pb
+from growabone.functions import pb_model_1 as pb1
+from growabone.functions import pb_model_3 as pb3
 from growabone.functions import logistic as logi
 from warnings import warn
 
@@ -37,11 +35,9 @@ class Grower(object):
 
         # Set initial guess for parameter values:
         if init_params is None:
-            # self.init_params = [0.42, 0.5, 0.12, 4.96, 6.31, 0.06, 3.11, 12.05]
             # self.init_params = [0.369,  0.355,  0.034,  3.343,  6.912,  0.04 ,  3.369, 11.662] # bone data
             # self.init_params = [0.029, 0.52, 0.0037, 3.0, 6.5, 0.0039, 2.3, 11.662] # Height data
-            self.init_params = [5.0, 1.5, 0.05, 1.0, 8.0, 0.05, 1.0, 13.0]
-            self.init_params2 = [5.0, 1.5, 0.05, 1.0, 13.0]
+            self.init_params = [0.42, 0.5, 0.05, 1.0, 8.0, 0.05, 1.0, 13.5]
         else:
             self.init_params = init_params
 
@@ -102,33 +98,38 @@ class Grower(object):
 
         # Bounds on parameter values
         minb = 0.0
-        maxb = np.inf
+        maxb = 100.0
         boundsv = [(minb, maxb) for i in range(len(params))]
 
-        ## Constraints for girls:
-        boundsv[3] = (0.0, 5.0)  # Constrain the childhood peak width to achieve a better fit
-        boundsv[4] = (5.0, 9.0)  # Constrain the childhood peak center to achieve a better fit
-        boundsv[6] = (0.0, 5.0)  # Constrain the puberty peak width to achieve a better fit
-        boundsv[7] = (9.0, 18.0)  # Constrain the puberty peak to achieve a better fit
+        ## Constraints:
+        boundsv[0] = (0.0, 100.0)  # Exponential phase max
+        boundsv[1] = (0.0, 100.0)  # Exponential phase decay
+        boundsv[2] = (0.0, 10.0)  # Childhood Gaussian peak height
+        boundsv[3] = (0.1, 20.0)  # Childhood Gaussian width
+        boundsv[4] = (0.0, 10.0)  # Childhood Gaussian peak center
+        boundsv[5] = (0.0, 10.0)  # Teenage Gaussian peak height
+        boundsv[6] = (0.1, 10.0)  # Teenage Gaussian peak width
+        boundsv[7] = (6.0, 20.0)  # Teenage Gaussian center
 
-        ## Constraints for boys:
-        # boundsv[3] = (0.0, 5.0)  # Constrain the childhood peak width to achieve a better fit
-        # boundsv[4] = (5.0, 11.0)  # Constrain the childhood peak center to achieve a better fit
-        # boundsv[6] = (0.0, 7.0)  # Constrain the puberty peak width to achieve a better fit
-        # boundsv[7] = (11.0, 18.0)  # Constrain the puberty peak to achieve a better fit
-
-        sol00 = minimize(gf.growth_pot_fitting,
-                        params,
-                        args=(self.dat_time, self.ln_vel_o),
-                        method='trust-constr',
-                        bounds=boundsv,
-                        tol = 1.0e-9
-                        )
+        # Step #1: Use dual annealing to find optimal starting parameters
+        sol00 = dual_annealing(gf.growth_pot_fitting,
+                       boundsv,
+                       args=(self.dat_time, self.ln_vel_o),
+                       maxiter=1000,
+                       minimizer_kwargs=None,
+                       initial_temp=5230.0,
+                       restart_temp_ratio=2e-05,
+                       visit=2.62,
+                       accept=-5.0,
+                       no_local_search=False,
+                       callback=None,
+                       x0=params,
+                       local_search_options=None)
 
         # Try a two-phase search where the solution of the growth potential fitting is used as the
         # initial conditions of a second fit to the real data:
 
-        sol0 = minimize(gf.growth_len_fitting_f2,
+        sol0 = minimize(gf.growth_len_fitting,
                         sol00.x,
                         args=(self.dat_time, self.dat_n),
                         method='trust-constr',
@@ -210,115 +211,6 @@ class Grower(object):
                                    fit_params[7],
                                    self.dat_Lmax)
 
-    def fit_biphasic(self):
-        '''
-        '''
-
-        # Minimize method: ----------------------------------------
-        params = np.asarray(self.init_params2)
-
-        # Bounds on parameter values
-        minb = 0.0
-        maxb = np.inf
-        boundsv = [(minb, maxb) for i in range(len(params))]
-
-        # ## Constraints for girls:
-        # boundsv[3] = (0.0, 5.0)  # Constrain the childhood peak width to achieve a better fit
-        # boundsv[4] = (5.0, 9.0)  # Constrain the childhood peak center to achieve a better fit
-        # boundsv[6] = (0.0, 5.0)  # Constrain the puberty peak width to achieve a better fit
-        # boundsv[7] = (9.0, 18.0)  # Constrain the puberty peak to achieve a better fit
-
-        ## Constraints for boys:
-        # boundsv[3] = (0.0, 5.0)  # Constrain the childhood peak width to achieve a better fit
-        # boundsv[4] = (5.0, 11.0)  # Constrain the childhood peak center to achieve a better fit
-        # boundsv[6] = (0.0, 7.0)  # Constrain the puberty peak width to achieve a better fit
-        # boundsv[7] = (11.0, 18.0)  # Constrain the puberty peak to achieve a better fit
-
-        # sol00 = minimize(gf.growth_pot_fitting,
-        #                 params,
-        #                 args=(self.dat_time, self.ln_vel_o),
-        #                 method='trust-constr',
-        #                 bounds=boundsv,
-        #                 tol = 1.0e-9
-        #                 )
-
-        # Try a two-phase search where the solution of the growth potential fitting is used as the
-        # initial conditions of a second fit to the real data:
-
-        sol0 = minimize(gfb.growth_len_fitting_f2,
-                        params,
-                        args=(self.dat_time, self.dat_n),
-                        method='trust-constr',
-                        bounds=boundsv,
-                        tol=1.0e-9
-                        )
-
-        fit_params = sol0.x
-
-
-        self.params_bybi = fit_params
-
-        # Compute the fit for use of these parameters on the original growth curve data:
-
-        self.fit_o_bybi = gfb.growth_len(self.dat_time,
-                                   fit_params[0],
-                                   fit_params[1],
-                                   fit_params[2],
-                                   fit_params[3],
-                                   fit_params[4],
-                                   self.dat_Lmax
-                                   )
-
-        self.rmse =  np.sqrt(np.mean((self.fit_o_bybi - self.dat_o) ** 2))
-
-        # Calculate parameter covariance matrix using the Jacobian:
-        jac = gfb.growth_jacobian_f2(fit_params, self.dat_time, self.dat_Lmax)
-
-        vari = np.sum((self.fit_o_bybi - self.dat_o)**2)/(len(self.fit_o_bybi) - len(fit_params))
-        param_covariance = np.linalg.pinv(jac.T.dot(jac))*vari
-
-        self.cov = param_covariance # save the covariance matrix
-        self.df = (len(self.fit_o_bybi) - len(fit_params)) # save degrees of freedom
-        self.N = len(self.fit_o_bybi)  # save total samples
-        self.n = len(fit_params) # save fit params
-
-        self.param_error_bybi = np.sqrt(np.diag(param_covariance))*self.rmse # Stand error of mean parameters
-        self.param_sd_bybi = np.sqrt(np.diag(param_covariance)) # Stand deviation of parameters
-        sum_resid = np.sum((self.fit_o_bybi - self.dat_o) ** 2)
-        self.mse_bybi = sum_resid
-        self.rmse_bybi = self.rmse
-
-        # Calculate the fboost and its components:
-        self.fboost_bybi, self.Fa, self.Fc = gfb.growth_fboost(fit_params[0], fit_params[1],
-                                       fit_params[2], fit_params[3], fit_params[4]
-                                       )
-
-        # Calculate the error on the fboost parameters:
-        # self.sd_fboost, self.sd_Fa, self.sd_Fc = gfb.error_fboost(fit_params[0], fit_params[1],
-        #                                fit_params[2], fit_params[3], fit_params[4],
-        #                                param_covariance)
-
-        # predict initial length from lboost and final length:
-        self.Lo_bybi = self.dat_Lmax / np.exp(self.fboost_bybi)
-        self.sd_Lo = self.Lo_bybi*self.sd_fboost
-
-        # Now that we have the parameters, compute components of the triphasic model's growth potential:
-        self.phi_gomp1b, self.phi_gauss2b = gfb.growth_potential_components(self.dat_time,
-                                                                                           fit_params[0],
-                                                                                           fit_params[1],
-                                                                                           fit_params[2],
-                                                                                           fit_params[3],
-                                                                                           fit_params[4],
-                                                                                           )
-
-        self.fit_vel_bybi = gfb.growth_vel(self.dat_time,
-                                   fit_params[0],
-                                   fit_params[1],
-                                   fit_params[2],
-                                   fit_params[3],
-                                   fit_params[4],
-                                   self.dat_Lmax)
-
 
     def fit_gompertz(self):
         '''
@@ -359,50 +251,164 @@ class Grower(object):
                                    fit_params[1],
                                    self.dat_Lmax)
 
-    def fit_pb(self):
+    def fit_pb1(self):
         '''
         '''
-        fit_params, pb_covariance = curve_fit(pb.growth_len_fitting,
-                                                 self.dat_time,
-                                                 self.dat_n,  # Fit to normalized growth curve
-                                                 sigma=None,
-                                                 absolute_sigma=False,
-                                                 check_finite=True,
-                                                 method='trf',  # lm’, ‘trf’, ‘dogbox’
-                                                 bounds=(0.0, np.inf),
-                                                 jac=None)
 
-        self.params_bypb = fit_params
-        self.param_error_bypb = np.sqrt(np.diag(pb_covariance))
+        # Minimize method: ----------------------------------------
+        params = np.asarray([174.6, 162.9, 0.1124, 1.2397, 14.6])
+
+        # Bounds on parameter values
+        minb = 0.0
+        maxb = 300.0
+        boundsv = [(minb, maxb) for i in range(len(params))]
+
+        boundsv[2] = (0, 100.0)
+        boundsv[3] = (0, 100.0)
+        boundsv[4] = (0, 100.0)
+
+        # Step #1: Use dual annealing to find optimal starting parameters
+        sol00 = dual_annealing(pb1.growth_len_fitting,
+                               boundsv,
+                               args=(self.dat_time, self.dat_o),
+                               maxiter=1000,
+                               minimizer_kwargs=None,
+                               initial_temp=5230.0,
+                               restart_temp_ratio=2e-05,
+                               visit=2.62,
+                               accept=-5.0,
+                               no_local_search=False,
+                               callback=None,
+                               x0=params,
+                               local_search_options=None)
+
+        # Try a two-phase search where the solution of the growth potential fitting is used as the
+        # initial conditions of a second fit to the real data:
+
+        sol0 = minimize(pb1.growth_len_fitting,
+                        sol00.x,
+                        args=(self.dat_time, self.dat_o),
+                        method='trust-constr',
+                        bounds=boundsv,
+                        tol=1.0e-9
+                        )
+
+        fit_params = sol0.x
+
+        self.params_bypb1 = fit_params
 
         # Compute the fit for use of these parameters on the original growth curve data:
-        self.fit_o_bypb = pb.growth_len(self.dat_time,
-                                   fit_params[0],
-                                   fit_params[1],
-                                   fit_params[2],
-                                   fit_params[3],
-                                   fit_params[4]
-                                   )
-        sum_resid = np.sum((self.fit_o_bypb - self.dat_o) ** 2)
-        self.rmse_bypb = np.sqrt(sum_resid)
 
-        self.fboost_bypb = pb.growth_fboost(fit_params[0], fit_params[1])
-        #     error_lboost =
-        ## FIXME: WHAT IS THE ERROR ON THE Lboost value given we have error on each param?
-        ## AND can propagate it...
+        self.fit_o_bypb1 = pb1.growth_len(self.dat_time,
+                                         fit_params[0],
+                                         fit_params[1],
+                                         fit_params[2],
+                                         fit_params[3],
+                                         fit_params[4]
+                                         )
 
-        # predict initial length from lboost and final length:
-        self.Lo_bypb = self.dat_Lmax / np.exp(self.fboost_bypb)
+        rmse = np.sqrt(np.mean((self.fit_o_bypb1 - self.dat_o) ** 2))
 
-        # Predict growth velocity:
-        self.fit_vel_bypb = pb.growth_vel(self.dat_time,
-                                   fit_params[0],
-                                   fit_params[1],
-                                   fit_params[2],
-                                   fit_params[3],
-                                   fit_params[4]
-                                   )
+        # self.cov = param_covariance  # save the covariance matrix
+        self.df_pb1 = (len(self.fit_o_bypb1) - len(fit_params))  # save degrees of freedom
+        self.N_pb1 = len(self.fit_o_bypb1)  # save total samples
+        self.n_pb1 = len(fit_params)  # save fit params
 
+        # self.param_error_bytri = np.sqrt(np.diag(param_covariance)) * self.rmse  # Stand error of mean parameters
+        # self.param_sd_bytri = np.sqrt(np.diag(param_covariance))  # Stand deviation of parameters
+        sum_resid = np.sum((self.fit_o_bypb1 - self.dat_o) ** 2)
+        self.mse_bypb1 = sum_resid
+        self.rmse_bypb1 = rmse
+
+
+        self.fit_vel_bypb1 = pb1.growth_vel(self.dat_time,
+                                           fit_params[0],
+                                           fit_params[1],
+                                           fit_params[2],
+                                           fit_params[3],
+                                           fit_params[4]
+                                            )
+
+    def fit_pb3(self):
+        '''
+        '''
+
+        # Minimize method: ----------------------------------------
+        params = np.asarray([174.6, 162.9, 0.088, 0.23, 1.37, 14.6])
+
+        # Bounds on parameter values
+        minb = 0.0
+        maxb = 300.0
+        boundsv = [(minb, maxb) for i in range(len(params))]
+
+        boundsv[2] = (0, 100.0)
+        boundsv[3] = (0, 100.0)
+        boundsv[4] = (0, 100.0)
+        boundsv[4] = (0, 100.0)
+
+        # Step #1: Use dual annealing to find optimal starting parameters
+        sol00 = dual_annealing(pb3.growth_len_fitting,
+                               boundsv,
+                               args=(self.dat_time, self.dat_o),
+                               maxiter=1000,
+                               minimizer_kwargs=None,
+                               initial_temp=5230.0,
+                               restart_temp_ratio=2e-05,
+                               visit=2.62,
+                               accept=-5.0,
+                               no_local_search=False,
+                               callback=None,
+                               x0=params,
+                               local_search_options=None)
+
+        # Try a two-phase search where the solution of the growth potential fitting is used as the
+        # initial conditions of a second fit to the real data:
+
+        sol0 = minimize(pb3.growth_len_fitting,
+                        sol00.x,
+                        args=(self.dat_time, self.dat_o),
+                        method='trust-constr',
+                        bounds=boundsv,
+                        tol=1.0e-9
+                        )
+
+        fit_params = sol0.x
+
+        self.params_bypb3 = fit_params
+
+        # Compute the fit for use of these parameters on the original growth curve data:
+
+        self.fit_o_bypb3 = pb3.growth_len(self.dat_time,
+                                         fit_params[0],
+                                         fit_params[1],
+                                         fit_params[2],
+                                         fit_params[3],
+                                         fit_params[4],
+                                         fit_params[5]
+                                         )
+
+        rmse = np.sqrt(np.mean((self.fit_o_bypb3 - self.dat_o) ** 2))
+
+        # self.cov = param_covariance  # save the covariance matrix
+        self.df_pb3 = (len(self.fit_o_bypb3) - len(fit_params))  # save degrees of freedom
+        self.N_pb3 = len(self.fit_o_bypb3)  # save total samples
+        self.n_pb3 = len(fit_params)  # save fit params
+
+        # self.param_error_bytri = np.sqrt(np.diag(param_covariance)) * self.rmse  # Stand error of mean parameters
+        # self.param_sd_bytri = np.sqrt(np.diag(param_covariance))  # Stand deviation of parameters
+        sum_resid = np.sum((self.fit_o_bypb3 - self.dat_o) ** 2)
+        self.mse_bypb3 = sum_resid
+        self.rmse_bypb3 = rmse
+
+
+        self.fit_vel_bypb3 = pb3.growth_vel(self.dat_time,
+                                           fit_params[0],
+                                           fit_params[1],
+                                           fit_params[2],
+                                           fit_params[3],
+                                           fit_params[4],
+                                            fit_params[5]
+                                            )
 
     def fit_logistic(self):
         '''

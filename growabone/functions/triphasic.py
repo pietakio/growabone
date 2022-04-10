@@ -178,50 +178,6 @@ def growth_vel(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc, Lmax=1):
 
     return Vt
 
-def growth_vel_fitting(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc):
-    '''
-    Computes the growth velocity curve given time ti and the set of required
-    parameters.
-
-    Parameters
-    ----------
-    ti : np.array
-        Time points to evaluate the curve
-    Ao : float
-        Initial rate of growth
-    alpha : float
-        Decline in initial rate of growth
-    Bo : float
-        Related to the height of the first Gaussian growth pulse
-    beta : float
-        Related to the width of the first Gaussian growth pulse
-    tb : float
-        Specifies the centre (wrt time) of the first Gaussian growth pulse.
-    Co : float
-        Related to the height of the second Gaussian growth pulse
-    gamma : float
-        Related to the width of the second Gaussian growth pulse
-    tc : float
-        Specifies the centre (wrt time) of the second Gaussian growth pulse.
-
-    '''
-
-    Bp = (np.sqrt(np.pi)*Bo*beta)/2
-    Cp = (np.sqrt(np.pi)*Co*gamma)/2
-
-    Vt = ((Ao*np.exp(-alpha*(ti)) +
-                Bo*np.exp(-(1 / (beta ** 2)) * (ti - tb) ** 2) +
-                Co*np.exp(-(1 / (gamma ** 2)) * (ti - tc) ** 2))*(
-                np.exp(-(Ao/alpha)*np.exp(-alpha*(ti)) +
-                Bp*(erf((ti - tb) / beta) - 1) +
-                Cp*(erf((ti - tc) / gamma) - 1)
-                )
-                )
-          )
-
-
-    return Vt
-
 def growth_len(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc, Lmax=1):
     '''
     Computes the growth curve given time ti and the set of required
@@ -267,51 +223,7 @@ def growth_len(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc, Lmax=1):
 
     return Lt
 
-def growth_len_fitting(ti, Ao, alpha, Bo, beta, tb, Co, gamma, tc):
-    '''
-    Computes the growth curve given time ti and the set of required
-    parameters given Lmax as a final parameter. Computes in terms of
-    the maximum (saturated) length.
-
-    Parameters
-    ----------
-    ti : np.array
-        Time points to evaluate the curve
-    Ao : float
-        Initial rate of growth
-    alpha : float
-        Decline in initial rate of growth
-    Bo : float
-        Related to the height of the first Gaussian growth pulse
-    beta : float
-        Related to the width of the first Gaussian growth pulse
-    tb : float
-        Specifies the centre (wrt time) of the first Gaussian growth pulse.
-    Co : float
-        Related to the height of the second Gaussian growth pulse
-    gamma : float
-        Related to the width of the second Gaussian growth pulse
-    tc : float
-        Specifies the centre (wrt time) of the second Gaussian growth pulse.
-    Lmax : float
-        Specifies the maximum growth that the segment reaches. If Lmax is 1, the
-        growth curve is normalized.
-
-    '''
-
-    Bp = ((np.sqrt(np.pi)*Bo*beta)/2)
-    Cp = ((np.sqrt(np.pi)*Co*gamma)/2)
-
-    g_Lm = (-(Ao/alpha)*np.exp(-alpha*ti) +
-            Bp*erf((ti - tb)/beta) +
-            Cp*erf((ti - tc)/gamma) - Bp - Cp
-            )
-
-    Lt = np.exp(g_Lm)
-
-    return Lt
-
-def growth_len_fitting_f2(params, ti, ydata):
+def growth_len_fitting(params, ti, ydata):
     '''
     Computes the growth curve given time ti and the set of required
     parameters given Lmax as a final parameter. Computes in terms of
