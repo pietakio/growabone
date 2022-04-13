@@ -43,25 +43,6 @@ class Grower(object):
 
         self.process_data()
 
-        # try:
-        #     self.fit_triphasic()
-        # except RuntimeError as exception:
-        #     warn(str(exception), UserWarning)
-        #
-        # try:
-        #     self.fit_gompertz()
-        # except RuntimeError as exception:
-        #     warn(str(exception), UserWarning)
-        #
-        # try:
-        #     self.fit_logistic()
-        # except RuntimeError as exception:
-        #     warn(str(exception), UserWarning)
-        #
-        # try:
-        #     self.fit_growth_potential()
-        # except RuntimeError as exception:
-        #     warn(str(exception), UserWarning)
 
     def process_data(self):
         '''
@@ -96,12 +77,12 @@ class Grower(object):
         boundsv = [(minb, maxb) for i in range(len(params))]
 
         ## Constraints:
-        boundsv[0] = (0.0, 100.0)  # Exponential phase max
-        boundsv[1] = (0.0, 100.0)  # Exponential phase decay
-        boundsv[2] = (0.0, 10.0)  # Childhood Gaussian peak height
-        boundsv[3] = (0.1, 20.0)  # Childhood Gaussian width
-        boundsv[4] = (0.0, 10.0)  # Childhood Gaussian peak center
-        boundsv[5] = (0.0, 10.0)  # Teenage Gaussian peak height
+        boundsv[0] = (0.0, 1.0)  # Exponential phase max
+        boundsv[1] = (0.0, 2.0)  # Exponential phase decay
+        boundsv[2] = (0.0, 1.0)  # Childhood Gaussian peak height
+        boundsv[3] = (0.1, 10.0)  # Childhood Gaussian width
+        boundsv[4] = (0.0, 6.0)  # Childhood Gaussian peak center
+        boundsv[5] = (0.0, 1.0)  # Teenage Gaussian peak height
         boundsv[6] = (0.1, 10.0)  # Teenage Gaussian peak width
         boundsv[7] = (6.0, 20.0)  # Teenage Gaussian center
 
