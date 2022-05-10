@@ -1,2 +1,2 @@
 # growabone
-Python API for predicting human growth characteristics
+Python API for modeling human growth characteristics using descriptive models.
