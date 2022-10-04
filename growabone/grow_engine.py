@@ -69,7 +69,8 @@ class Grower(object):
         '''
 
         # Minimize method: ----------------------------------------
-        params = self.init_params
+        # params = np.asarray([0.5, 1.3, 0.06, 3.0, 3.0, 0.04, 2.0, 13.0])
+        params = np.asarray([0.1, 0.1, 0.06, 3.0, 3.0, 0.04, 2.0, 13.0])
 
         # Bounds on parameter values
         minb = 0.0
@@ -78,19 +79,19 @@ class Grower(object):
 
         ## Constraints:
         boundsv[0] = (0.0, 1.0)  # Exponential phase max
-        boundsv[1] = (0.0, 2.0)  # Exponential phase decay
-        boundsv[2] = (0.0, 1.0)  # Childhood Gaussian peak height
+        boundsv[1] = (0.0, 20.0)  # Exponential phase decay
+        boundsv[2] = (0.0, 0.2)  # Childhood Gaussian peak height
         boundsv[3] = (0.1, 10.0)  # Childhood Gaussian width
-        boundsv[4] = (0.0, 6.0)  # Childhood Gaussian peak center
-        boundsv[5] = (0.0, 1.0)  # Teenage Gaussian peak height
-        boundsv[6] = (0.1, 10.0)  # Teenage Gaussian peak width
-        boundsv[7] = (6.0, 20.0)  # Teenage Gaussian center
+        boundsv[4] = (0.0, 10.0)  # Childhood Gaussian peak center
+        boundsv[5] = (0.0, 0.2)  # Teenage Gaussian peak height
+        boundsv[6] = (0.1, 5.0)  # Teenage Gaussian peak width
+        boundsv[7] = (8.0, 20.0)  # Teenage Gaussian center
 
         # Step #1: Use dual annealing to find optimal starting parameters
         sol00 = dual_annealing(gf.growth_len_fitting,
                        boundsv,
                        args=(self.dat_time, self.dat_n),
-                       maxiter=1000,
+                       maxiter=2000,
                        minimizer_kwargs=None,
                        initial_temp=5230.0,
                        restart_temp_ratio=2e-05,
