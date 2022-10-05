@@ -78,14 +78,14 @@ class Grower(object):
         boundsv = [(minb, maxb) for i in range(len(params))]
 
         ## Constraints:
-        boundsv[0] = (0.0, 1.0)  # Exponential phase max
-        boundsv[1] = (0.0, 20.0)  # Exponential phase decay
+        boundsv[0] = (0.0, 10.0)  # Exponential phase max
+        boundsv[1] = (0.0, 10.0)  # Exponential phase decay
         boundsv[2] = (0.0, 0.2)  # Childhood Gaussian peak height
-        boundsv[3] = (0.1, 10.0)  # Childhood Gaussian width
-        boundsv[4] = (0.0, 10.0)  # Childhood Gaussian peak center
+        boundsv[3] = (0.1, 20.0)  # Childhood Gaussian width
+        boundsv[4] = (1.0, 7.0)  # Childhood Gaussian peak center
         boundsv[5] = (0.0, 0.2)  # Teenage Gaussian peak height
         boundsv[6] = (0.1, 5.0)  # Teenage Gaussian peak width
-        boundsv[7] = (8.0, 20.0)  # Teenage Gaussian center
+        boundsv[7] = (7.0, 18.0)  # Teenage Gaussian center
 
         # Step #1: Use dual annealing to find optimal starting parameters
         sol00 = dual_annealing(gf.growth_len_fitting,

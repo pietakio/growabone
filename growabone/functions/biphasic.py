@@ -114,7 +114,7 @@ def growth_potential_components(ti, Ao, alpha, Co, gamma, tc):
     gomp = Ao*np.exp(-alpha * (ti))
     gauss2 = Co*np.exp(-(1 / (gamma ** 2)) * (ti - tc) ** 2)
 
-    return gomp, gauss1, gauss2
+    return gomp, gauss2
 
 def growth_vel(ti, Ao, alpha, Co, gamma, tc, Lmax=1):
     '''
