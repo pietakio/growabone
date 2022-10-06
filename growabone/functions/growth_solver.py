@@ -23,13 +23,12 @@ class ModelType(Enum):
     full_TGM = 'full TGM'
     norm_TGM = 'norm TGM'
     pb1 = 'PB1'
-    pb3 = 'PB3'
     karleberg = 'Karleberg'
     logistic = 'logistic'
     gompertz = 'gompertz'
     trilog = 'tri-logistic'
-    pareto_log = 'pareto-logistic'
-    pareto_erf = 'pareto-erf'
+    explogistic = 'exp-logistic'
+    lomax = 'lomax'
 
 
 @beartype
@@ -55,26 +54,23 @@ class GrowthSolver(object):
         elif model_type is ModelType.pb1:
             self._solve_analytical_PB1()
 
-        elif model_type is ModelType.pb3:
-            self._solve_analytical_PB3()
-
         elif model_type is ModelType.trilog:
             self._solve_analytical_trilogistic()
 
+        elif model_type is ModelType.explogistic:
+            self._solve_analytical_explogistic()
+
         elif model_type is ModelType.karleberg:
             self._solve_analytical_karleberg()
-
-        elif model_type is ModelType.pareto_erf:
-            self._solve_analytical_pareto_erf()
-
-        elif model_type is ModelType.pareto_log:
-            self._solve_analytical_pareto_logistic()
 
         elif model_type is ModelType.logistic:
             self._solve_analytical_logistic()
 
         elif model_type is ModelType.gompertz:
             self._solve_analytical_gompertz()
+
+        elif model_type is ModelType.lomax:
+            self._solve_analytical_lomax()
 
         else:
             raise Exception("Model type not supported.")
@@ -179,22 +175,7 @@ class GrowthSolver(object):
 
         self._set_numerical_components() # Finish up this model with common assignments & 'numerification' of functions
 
-    def _solve_analytical_PB3(self):
-        '''
-        Solve the Preece-Bains model #3
-        :return:
-        '''
-
-        h_1, h_theta, theta, p_o, p_1, q_1, t = sp.symbols('h_1, h_theta, theta, p_o, p_1, q_1, t',
-                                                                  real=True, positive=True)
-        h_m3 = (h_1 -
-                ((4 * (h_1 - h_theta)) / ((sp.exp(p_o * (t - theta)) +
-                                             sp.exp(p_1 * (t - theta))) * (1 + sp.exp(q_1 * (t - theta))))))
-        self._Lt_m = h_m3 # Symbolic growth curve
-        self._t = t # symbolic time
-        self.params_s = [h_1, h_theta, theta, p_o, p_1, q_1] # Symbolic parameters
-
-        self._set_numerical_components() # Finish up this model with common assignments & 'numerification' of functions
+        self.init_params_o = [172.0, 159.8, 0.115, 1.06, 12.81]
 
     def _solve_analytical_karleberg(self):
         '''
@@ -213,13 +194,15 @@ class GrowthSolver(object):
 
         self._set_numerical_components() # Finish up this model with common assignments & 'numerification' of functions
 
+        self.init_params_o = [25.1, 26.1, -0.04, 44.17, 9.76, -0.20, 11.88, 2.27, 14.60]
+
     def _solve_analytical_logistic(self):
         '''
 
         :return:
         '''
         alpha, ta, Lmax, t = sp.symbols('alpha, ta, Lmax, t')
-        Lt = Lmax / (1 + np.exp(-alpha * (t - ta)))
+        Lt = Lmax / (1 + sp.exp(-alpha * (t - ta)))
 
         self._Lt_m = Lt # growth function
 
@@ -236,11 +219,29 @@ class GrowthSolver(object):
         '''
         A, alpha, Lmax, t = sp.symbols('alpha, ta, Lmax, t')
 
-        Lt = Lmax * np.exp(-(A / alpha) * np.exp(-alpha * (t)))
+        Lt = Lmax * sp.exp(-(A / alpha) * sp.exp(-alpha * (t)))
 
         self._Lt_m = Lt  # growth function
 
         self.params_s = [A, alpha, Lmax]  # symbolic parameters vector
+
+        self._t = t
+
+        self._set_numerical_components()  # Finish up this model with common assignment & 'numerification' of functions
+
+    def _solve_analytical_lomax(self):
+        '''
+
+        :return:
+        '''
+        A, alpha, t = sp.symbols('A, alpha, t')
+
+        # Lt = A * (1 - (1 + (t/lamb))**(-alpha))
+        Lt = A * (1 - sp.exp(-alpha*t))
+
+        self._Lt_m = Lt  # growth function
+
+        self.params_s = [A, alpha]  # symbolic parameters vector
 
         self._t = t
 
@@ -252,12 +253,12 @@ class GrowthSolver(object):
         :return:
         '''
         alpha1, ta1, Lmax1, t = sp.symbols('alpha1, ta1, Lmax1, t')
-        alpha2, ta2, Lmax2, t = sp.symbols('alpha2, ta2, Lmax2')
-        alpha3, ta3, Lmax3, t = sp.symbols('alpha3, ta3, Lmax3')
+        alpha2, ta2, Lmax2 = sp.symbols('alpha2, ta2, Lmax2')
+        alpha3, ta3, Lmax3 = sp.symbols('alpha3, ta3, Lmax3')
 
-        Lt1 = Lmax1 / (1 + np.exp(-alpha1 * (t - ta1)))
-        Lt2 = Lmax2 / (1 + np.exp(-alpha2 * (t - ta2)))
-        Lt3 = Lmax3 / (1 + np.exp(-alpha3 * (t - ta3)))
+        Lt1 = Lmax1 / (1 + sp.exp(-alpha1 * (t - ta1)))
+        Lt2 = Lmax2 / (1 + sp.exp(-alpha2 * (t - ta2)))
+        Lt3 = Lmax3 / (1 + sp.exp(-alpha3 * (t - ta3)))
 
         self._Lt_m = Lt1 + Lt2 + Lt3 # growth function
 
@@ -267,43 +268,31 @@ class GrowthSolver(object):
 
         self._set_numerical_components() # Finish up this model with common assignment & 'numerification' of functions
 
-    def _solve_analytical_pareto_logistic(self):
+        self.init_params_o = [1.24, 0.25, 90.48, 0.48, 8.17, 74.85, 0.32, 13.9, 17.2]
+
+    def _solve_analytical_explogistic(self):
         '''
 
         :return:
         '''
-        A, alpha, tm, t = sp.symbols('A, alpha, tm, t')
-        B, beta, tb, t = sp.symbols('B, beta, tb, t')
 
-        Lt1 = A * (1 - (tm/t)**alpha)
-        Lt2 = B / (1 + np.exp(-beta * (t - tb)))
+        alpha1, Lmax1, t = sp.symbols('alpha1, Lmax1, t')
+        alpha2, ta2, Lmax2 = sp.symbols('alpha2, ta2, Lmax2')
+        alpha3, ta3, Lmax3 = sp.symbols('alpha3, ta3, Lmax3')
 
-        self._Lt_m = Lt1 + Lt2  # growth function
+        Lt1 = Lmax1*(1 - sp.exp(-alpha1*1))
+        Lt2 = Lmax2 / (1 + sp.exp(-alpha2 * (t - ta2)))
+        Lt3 = Lmax3 / (1 + sp.exp(-alpha3 * (t - ta3)))
 
-        self.params_s = [A, alpha, tm, B, beta, tb]  # symbolic parameters vector
+        self._Lt_m = Lt1 + Lt2 + Lt3 # growth function
 
-        self._t = t
-
-        self._set_numerical_components()  # Finish up this model with common assignment & 'numerification' of functions
-
-    def _solve_analytical_pareto_erf(self):
-        '''
-
-        :return:
-        '''
-        A, alpha, tm, t = sp.symbols('A, alpha, tm, t')
-        B, beta, tb, t = sp.symbols('B, beta, tb, t')
-
-        Lt1 = A * (1 - (tm/t)**alpha)
-        Lt2 = B * sp.erf((t - tb) / beta)
-
-        self._Lt_m = Lt1 + Lt2  # growth function
-
-        self.params_s = [A, alpha, tm, B, beta, tb]  # symbolic parameters vector
+        self.params_s = [alpha1, Lmax1, alpha2, ta2, Lmax2, alpha3, ta3, Lmax3] # symbolic parameters vector
 
         self._t = t
 
-        self._set_numerical_components()  # Finish up this model with common assignment & 'numerification' of functions
+        self._set_numerical_components() # Finish up this model with common assignment & 'numerification' of functions
+
+        self.init_params_o = [1.24, 0.25, 90.48, 0.48, 8.17, 74.85]
 
     def _set_numerical_components(self):
         '''
@@ -387,7 +376,9 @@ class GrowthSolver(object):
         fit_vel_M = []
         fit_rmse_M = []
         fit_resids_M = []
+        vel_array = []
 
+        del_t = np.gradient(tt, edge_order=2) # time differential
 
         for i, dat in enumerate(dat_array.T):
 
@@ -431,6 +422,10 @@ class GrowthSolver(object):
             fit_rmse_M.append(rmse)
             fit_resids_M.append(resids)
 
+            # take the velocity of the data series:
+            vel = np.gradient(dat, edge_order=2) / del_t  # Calculate the growth velocity of the raw data
+            vel_array.append(vel)
+
             if verbose:
                 print(f'Record {i} rmse: {rmse}, opti val: {sol0.fun}')
 
@@ -440,3 +435,7 @@ class GrowthSolver(object):
         self.fit_vel_M = np.asarray(fit_vel_M).T
         self.fit_rmse_M = np.asarray(fit_rmse_M).T
         self.fit_resids_M = np.asarray(fit_resids_M).T
+        self.dat_time = tt # save the original time vector
+        self.dat_array = dat_array # save the original set of data series
+        self.vel_array = np.asarray(vel_array).T # save the velocity of original data series
+
